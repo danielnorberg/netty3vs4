@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -28,27 +29,26 @@ public class Netty4Benchmark {
               Unpooled.copiedBuffer(new byte[32])));
 
   public static final int CPUS = Runtime.getRuntime().availableProcessors();
-  public static final PooledByteBufAllocator POOLED_ALLOCATOR = new PooledByteBufAllocator();
   public static final int CONCURRENT_REQUESTS = 1000;
 
   static class Server {
 
     public Server(final InetSocketAddress address) throws InterruptedException {
-      final EventLoopGroup bossGroup = new NioEventLoopGroup();
       final EventLoopGroup workerGroup = new NioEventLoopGroup();
 
       final ServerBootstrap b = new ServerBootstrap();
-      b.group(bossGroup, workerGroup)
+      b.group(workerGroup)
           .channel(NioServerSocketChannel.class)
+          .childOption(ChannelOption.TCP_NODELAY, false)
+          .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
           .childHandler(new ChannelInitializer<SocketChannel>() {
-            @Override
-            protected void initChannel(final SocketChannel ch) throws Exception {
-              ch.config().setAllocator(POOLED_ALLOCATOR);
-              ch.pipeline().addLast(
-                  new LengthFieldPrepender(4),
-                  new LengthFieldBasedFrameDecoder(128 * 1024 * 1024, 0, 4, 0, 4),
-                  new Handler());
-            }
+              @Override
+              protected void initChannel(final SocketChannel ch) throws Exception {
+                  ch.pipeline().addLast(
+                          new LengthFieldPrepender(4),
+                          new LengthFieldBasedFrameDecoder(128 * 1024 * 1024, 0, 4, 0, 4),
+                          new Handler());
+              }
           });
 
       b.bind(address).sync();
@@ -76,10 +76,11 @@ public class Netty4Benchmark {
       final Bootstrap b = new Bootstrap();
       b.group(workerGroup)
           .channel(NioSocketChannel.class)
+          .option(ChannelOption.TCP_NODELAY, false)
+          .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
           .handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(final SocketChannel ch) throws Exception {
-              ch.config().setAllocator(POOLED_ALLOCATOR);
               ch.pipeline().addLast(
                   new LengthFieldPrepender(4),
                   new LengthFieldBasedFrameDecoder(128 * 1024 * 1024, 0, 4, 0, 4),
