@@ -1,0 +1,28 @@
+#!/bin/bash -e
+
+project="netty3vs4"
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+jar="$(ls -t $dir/../target/$project*.jar | grep -v sources | grep -v javadoc | head -n 1)"
+jar="$(cd $(dirname $jar) && pwd -P)/$(basename $jar)"
+
+: ${JMX_PORT=7091}
+: ${JVM_ARGS=""}
+
+echo JMX_PORT=$JMX_PORT
+echo JVM_ARGS=$JVM_ARGS
+echo
+
+CMD="java -Dcom.sun.management.jmxremote.port=$JMX_PORT \
+          -Dcom.sun.management.jmxremote.ssl=false \
+          -Dcom.sun.management.jmxremote.authenticate=false \
+          -XX:+UnlockCommercialFeatures -XX:+FlightRecorder \
+          $JVM_ARGS \
+          -cp $jar \
+          Netty4Benchmark \
+          $@"
+
+echo $CMD
+echo
+
+$CMD
